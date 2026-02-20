@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://c5p521sukvxot"]
+
+[sub_resource type="GDScript" id="GDScript_mf4mk"]
+resource_name = "test"
+script/source = "extends Control
+
+@export var i = 0
+
+func _ready() -> void:
+    $Button.text = \"test\\n\"+str(i)+\"\\n测试1\\n鸽！！\"
+
+func selected(node):
+    if node == self:
+        $Button.modulate = Color.RED
+    else:
+        $Button.modulate = Color.WHITE
+"
+
+[node name="Test" type="Control" unique_id=315343669]
+custom_minimum_size = Vector2(200, 85)
+layout_mode = 3
+anchors_preset = 0
+offset_bottom = 75.0
+script = SubResource("GDScript_mf4mk")
+
+[node name="Button" type="Button" parent="." unique_id=553344022]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

@@ -1,0 +1,14 @@
+[gd_resource type="Theme" format=3 uid="uid://1xpa63xq0uv1"]
+
+[ext_resource type="StyleBox" uid="uid://cnyl4oangmxsa" path="res://assets/tres/RoundCornerButtonStyle.tres" id="1_2frc7"]
+[ext_resource type="FontVariation" uid="uid://bwxxlhukbwrqi" path="res://assets/tres/SpacingBold.tres" id="1_gvppr"]
+[ext_resource type="StyleBox" uid="uid://dgavlpsah0j8o" path="res://assets/tres/RoundCornerButtonHoverStyle.tres" id="2_pyoxu"]
+[ext_resource type="StyleBox" uid="uid://dacj1t0gac35r" path="res://assets/tres/RoundCornerButtonPressedStyle.tres" id="3_tb68d"]
+
+[resource]
+Button/fonts/font = ExtResource("1_gvppr")
+Button/styles/disabled = ExtResource("1_2frc7")
+Button/styles/focus = ExtResource("2_pyoxu")
+Button/styles/hover = ExtResource("2_pyoxu")
+Button/styles/normal = ExtResource("1_2frc7")
+Button/styles/pressed = ExtResource("3_tb68d")

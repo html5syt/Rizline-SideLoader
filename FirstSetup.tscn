@@ -1,0 +1,358 @@
+[gd_scene format=3 uid="uid://baakbpgxj617d"]
+
+[ext_resource type="Script" uid="uid://dqivcjflff1l1" path="res://firstsetup.gd" id="1_1csty"]
+[ext_resource type="FontVariation" uid="uid://cldulxdjd1mho" path="res://assets/tres/Spacing.tres" id="2_stnmt"]
+[ext_resource type="FontVariation" uid="uid://bwxxlhukbwrqi" path="res://assets/tres/SpacingBold.tres" id="3_1csty"]
+[ext_resource type="Theme" uid="uid://1xpa63xq0uv1" path="res://assets/tres/RoundCornerButton.tres" id="4_5jmm4"]
+[ext_resource type="Texture2D" uid="uid://c3tido8wmanmm" path="res://assets/pic/open.png" id="5_5jmm4"]
+[ext_resource type="Texture2D" uid="uid://4ybknbolu5rt" path="res://assets/pic/X.png" id="5_uiuwi"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gdqse"]
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 6
+border_width_top = 6
+border_width_right = 6
+border_width_bottom = 6
+border_color = Color(0.41960785, 0.41960785, 0.41960785, 0.67058825)
+corner_radius_top_left = 55
+corner_radius_top_right = 55
+corner_radius_bottom_right = 55
+corner_radius_bottom_left = 55
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mk6qf"]
+bg_color = Color(1, 0.49411765, 0.4509804, 1)
+border_width_left = 5
+border_width_top = 5
+border_width_right = 5
+border_width_bottom = 5
+border_color = Color(1, 0.79607844, 0.78039217, 1)
+corner_radius_top_left = 192
+corner_radius_top_right = 192
+corner_radius_bottom_right = 192
+corner_radius_bottom_left = 192
+corner_detail = 16
+
+[sub_resource type="Theme" id="Theme_sw61l"]
+
+[sub_resource type="Animation" id="Animation_psd4f"]
+length = 0.001
+tracks/0/type = "bezier"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("BG:scale:x")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.8, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/1/type = "bezier"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("BG:scale:y")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.8, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/2/type = "bezier"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".:modulate:r")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(1, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/3/type = "bezier"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath(".:modulate:g")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(1, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/4/type = "bezier"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath(".:modulate:b")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(1, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/5/type = "bezier"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath(".:modulate:a")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(1, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath(".:modulate")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_14xgd"]
+resource_name = "in"
+length = 0.4
+tracks/0/type = "bezier"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("BG:scale:x")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"handle_modes": PackedInt32Array(0, 0),
+"points": PackedFloat32Array(0.8, -0.25, 0, 0, 0.13203609, 1, -0.4, -0.0013932586, 0, 0),
+"times": PackedFloat32Array(0, 0.4)
+}
+tracks/1/type = "bezier"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("BG:scale:y")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"handle_modes": PackedInt32Array(0, 0),
+"points": PackedFloat32Array(0.8, -0.25, 0, 0, 0.1296153, 1, -0.4, -0.0009897947, 0, 0),
+"times": PackedFloat32Array(0, 0.4)
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath(".:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.4),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 0), Color(1, 1, 1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_7q1s6"]
+resource_name = "in"
+length = 0.2
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 1), Color(1, 1, 1, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_psd4f"]
+_data = {
+&"RESET": SubResource("Animation_psd4f"),
+&"in": SubResource("Animation_14xgd"),
+&"out": SubResource("Animation_7q1s6")
+}
+
+[node name="Dialog" type="Control" unique_id=1797849475]
+modulate = Color(1, 1, 1, 0)
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_1csty")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=156753304]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.6156863, 0.6156863, 0.6156863, 0.15686275)
+
+[node name="BG" type="Panel" parent="." unique_id=1216147548]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -393.0
+offset_top = -297.0
+offset_right = 393.0
+offset_bottom = 297.0
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(0.8, 0.8)
+pivot_offset = Vector2(393, 297)
+theme_override_styles/panel = SubResource("StyleBoxFlat_gdqse")
+
+[node name="MarginContainer" type="MarginContainer" parent="BG" unique_id=1486042985]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 81.89583
+grow_horizontal = 2
+theme_override_constants/margin_left = 33
+theme_override_constants/margin_top = 38
+theme_override_constants/margin_right = 33
+
+[node name="Title" type="Label" parent="BG/MarginContainer" unique_id=900657434]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("2_stnmt")
+theme_override_font_sizes/font_size = 43
+text = "初次设置"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Control" type="Control" parent="BG" unique_id=1095239391]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="BG/Control" unique_id=2089418054]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="RichTextLabel" parent="BG/Control/VBoxContainer" unique_id=2061678378]
+custom_minimum_size = Vector2(676, 0)
+layout_mode = 2
+theme_override_colors/default_color = Color(0, 0, 0, 1)
+theme_override_constants/line_separation = 10
+theme_override_fonts/normal_font = ExtResource("2_stnmt")
+theme_override_fonts/bold_font = ExtResource("3_1csty")
+theme_override_fonts/bold_italics_font = ExtResource("3_1csty")
+theme_override_fonts/italics_font = ExtResource("2_stnmt")
+theme_override_font_sizes/normal_font_size = 25
+theme_override_font_sizes/bold_font_size = 25
+theme_override_font_sizes/bold_italics_font_size = 25
+theme_override_font_sizes/italics_font_size = 25
+theme_override_font_sizes/mono_font_size = 25
+bbcode_enabled = true
+text = "[center][b]欢迎使用Rizline SideLoader！[/b][/center]
+该程序通过替换创意工坊的谱面文件实现加载本地的自定义谱面，适用于家庭共享等无法上传谱面到Steam的情况。
+为了读取当前的创意工坊谱面数据，请点击下方按钮选择Steam[b]安装目录[/b]（包含steam.exe等可执行文件）。
+※点击“×”会退出程序。你随时可以通过“设置”再次打开该对话框。[b][u]请勿滥用本程序加载官方内置谱面，谢谢各位小鸽子的配合。[/u]祝各位小鸽子收歌顺利，游玩愉快！[/b]"
+fit_content = true
+scroll_active = false
+autowrap_mode = 1
+vertical_alignment = 1
+
+[node name="Choose" type="Button" parent="BG/Control/VBoxContainer" unique_id=865453870]
+custom_minimum_size = Vector2(340, 55)
+layout_mode = 2
+size_flags_horizontal = 4
+theme = ExtResource("4_5jmm4")
+theme_override_colors/font_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_colors/font_focus_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_colors/font_pressed_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_colors/font_hover_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_colors/font_hover_pressed_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_colors/font_disabled_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_colors/icon_normal_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_colors/icon_focus_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_colors/icon_pressed_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_colors/icon_hover_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_colors/icon_hover_pressed_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_colors/icon_disabled_color = Color(0.41568628, 0.38039216, 0.8117647, 1)
+theme_override_constants/icon_max_width = 20
+theme_override_font_sizes/font_size = 21
+text = "选取Steam安装目录"
+icon = ExtResource("5_5jmm4")
+alignment = 2
+expand_icon = true
+
+[node name="MarginContainer2" type="MarginContainer" parent="BG" unique_id=1052177984]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -170.0
+offset_top = -101.0
+offset_bottom = 34.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_constants/margin_right = 35
+
+[node name="HBoxContainer" type="HBoxContainer" parent="BG/MarginContainer2" unique_id=382129299]
+layout_mode = 2
+theme_override_constants/separation = 29
+
+[node name="Cancel" type="Panel" parent="BG/MarginContainer2/HBoxContainer" unique_id=1465729699]
+custom_minimum_size = Vector2(135, 135)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_mk6qf")
+
+[node name="icon" type="TextureRect" parent="BG/MarginContainer2/HBoxContainer/Cancel" unique_id=2061258037]
+custom_minimum_size = Vector2(25, 25)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_sw61l")
+texture = ExtResource("5_uiuwi")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=340071105]
+libraries/ = SubResource("AnimationLibrary_psd4f")
+
+[node name="FileDialog" type="FileDialog" parent="." unique_id=684583870]
+oversampling_override = 1.0
+title = "Open a Directory"
+initial_position = 2
+ok_button_text = "打开"
+cancel_button_text = "取消"
+file_mode = 2
+access = 2
+filters = PackedStringArray("*.exe")
+use_native_dialog = true
+
+[connection signal="pressed" from="BG/Control/VBoxContainer/Choose" to="." method="_on_choose_pressed"]
+[connection signal="gui_input" from="BG/MarginContainer2/HBoxContainer/Cancel" to="." method="_on_cancel_gui_input"]
+[connection signal="dir_selected" from="FileDialog" to="." method="_on_file_dialog_file_selected"]
