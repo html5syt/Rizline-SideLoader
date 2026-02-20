@@ -271,7 +271,7 @@ bbcode_enabled = true
 text = "[center][b]欢迎使用Rizline SideLoader！[/b][/center]
 该程序通过替换创意工坊的谱面文件实现加载本地的自定义谱面，适用于家庭共享等无法上传谱面到Steam的情况。
 为了读取当前的创意工坊谱面数据，请点击下方按钮选择Steam[b]安装目录[/b]（包含steam.exe等可执行文件）。
-※点击“×”会退出程序。你随时可以通过“设置”再次打开该对话框。[b][u]请勿滥用本程序加载官方内置谱面，谢谢各位小鸽子的配合。[/u]祝各位小鸽子收歌顺利，游玩愉快！[/b]"
+※点击“×”会退出程序。你随时可以通过“设置”再次打开该对话框。[b][u][color=RED]请勿滥用本程序加载官方内置谱面[/color]，谢谢各位小鸽子的配合。[/u][color=RED]并注意及时备份存档防止成绩丢失。[/color][br][center]祝各位小鸽子收歌顺利，游玩愉快！[/center][/b]"
 fit_content = true
 scroll_active = false
 autowrap_mode = 1

@@ -6,6 +6,7 @@ extends Control
 @export var path: String
 @export var illustration: Texture2D
 @export var favourite: bool = false
+@export var record: Dictionary = {}
 
 var configured = false
 
@@ -74,7 +75,21 @@ func _ready() -> void:
             # Local file not found or invalid, try to fetch from Steam
             print("Illustration file may does not exist or invalid for item: ", path)
             
+    # 初始化状态颜色
+    var fc = bool(record.get("isFullCombo", false))
+    var cl = bool(record.get("isClear", false))
+    set_status_color(fc, cl)
+
     configured = true
+
+func set_status_color(fc: bool, cl: bool):
+    var status_rect = $MarginContainer2/HBoxContainer/Status
+    if fc and cl:
+        status_rect.modulate = Color(1.0, 0.831, 0.043)
+    elif cl:
+        status_rect.modulate = Color(0.38, 0.847, 1.0)
+    else:
+        status_rect.modulate = Color(0.6, 0.6, 0.6)
         
 func selected(node):
     if node == self:

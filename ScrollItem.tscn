@@ -31,6 +31,7 @@ corner_detail = 16
 [sub_resource type="Theme" id="Theme_4ydh1"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hm32b"]
+bg_color = Color(1, 1, 1, 1)
 corner_radius_top_left = 55
 corner_radius_top_right = 55
 corner_radius_bottom_right = 55
@@ -144,6 +145,7 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Status" type="Panel" parent="MarginContainer2/HBoxContainer" unique_id=161045816]
+modulate = Color(0.6, 0.6, 0.6, 1)
 custom_minimum_size = Vector2(5, 0)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_hm32b")

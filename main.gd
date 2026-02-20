@@ -36,6 +36,7 @@ var _active_dialog: Node = null # 追踪当前打开的对话框
 var _preview_start_marker: float = 0.0 # 当前预览音乐的起始秒数
 var _preview_tween: Tween # 追踪淡入淡出动画
 var _is_splashed: bool = false # 标记是否完成了开场动画
+var _save_manager = SaveManager.new()
 
 # 标签路径
 const GROUP_LABEL_PATHS = [
@@ -92,7 +93,7 @@ func _on_selected(node, idx):
         chart_type_label.text = "创意工坊" if node.type == node.Type.WORKSHOP else "本地谱面"
         
         # 3. 追加状态文字 (支持多对替换关系)
-        var replace_pairs = config.get_work("replace_pairs", [])
+        var replace_pairs = _get_synced_replace_pairs()
         
         if node.type == node.Type.WORKSHOP:
             for i in range(replace_pairs.size()):
@@ -115,9 +116,43 @@ func _on_selected(node, idx):
         load_btn.text = "WTF?"
         load_btn.icon = null
 
-    # 最大分数和最大连击
-    $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/Control/MarginContainer/HBoxContainer/MarginContainer/VBoxContainer/Hit/All.text = "/" + str(int(selected_metadata.get("maxHit", 0))) if selected_metadata else "/0"
-    $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer2/HBoxContainer/Control/MarginContainer/Score/All.text = "/" + str(int(selected_metadata.get("maxScore", 0))) if selected_metadata else "/0000000"
+    # 读取并显示成绩信息
+    var record = _get_record_for_node(node)
+    
+    # ① score
+    $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer2/HBoxContainer/Control/MarginContainer/Score/Current.text = "%07d" % int(record.get("score", 0))
+    
+    # ② completeRate
+    var acc = float(record.get("completeRate", 0.0))
+    $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/Control/MarginContainer/HBoxContainer/Acc/Big.text = str(int(acc))
+    var decimal_part = acc - int(acc)
+    $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/Control/MarginContainer/HBoxContainer/Acc/Small.text = "." + ("%.4f" % decimal_part).substr(2) + "%"
+
+    # ③ isFullCombo, isClear - Status Color
+    var fc = bool(record.get("isFullCombo", false))
+    var cl = bool(record.get("isClear", false))
+    var status_color = Color(0.6, 0.6, 0.6)
+    if fc and cl:
+        status_color = Color(1.0, 0.831, 0.043)
+    elif cl:
+        status_color = Color(0.38, 0.847, 1.0)
+    
+    $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/BG/MarginContainer/HBoxContainer/HBoxContainer/Status.modulate = status_color
+    # 列表项自身的颜色设置现在由 scroll_item._ready 自动处理，且数据已在 refresh 时注入
+    # if node: node.set_status_color(fc, cl) 
+
+    # ④ hit
+    $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/Control/MarginContainer/HBoxContainer/MarginContainer/VBoxContainer/Hit/Current.text = str(int(record.get("hit", 0)))
+    # ⑤ bad
+    $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/VBoxContainer/Bad.text = str(int(record.get("bad", 0)))
+    # ⑥ miss
+    $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/VBoxContainer2/Miss.text = str(int(record.get("miss", 0)))
+    # ⑦ maxHit
+    var display_max_hit = int(record.get("maxHit", selected_metadata.get("maxHit", 0) if selected_metadata else 0))
+    $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/Control/MarginContainer/HBoxContainer/MarginContainer/VBoxContainer/Hit/All.text = "/" + str(display_max_hit)
+    # ⑧ maxScore
+    var display_max_score = int(record.get("maxScore", selected_metadata.get("maxScore", 0) if selected_metadata else 0))
+    $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer2/HBoxContainer/Control/MarginContainer/Score/All.text = "/" + "%07d" % display_max_score
     
     # 刷新收藏图标状态
     _update_favourite_icon_visual(node)
@@ -134,21 +169,14 @@ func _on_selected(node, idx):
         $MarginContainer/UIContainer/RightPannel/MarginContainer/HBoxContainer/MarginContainer/VBoxContainer/BG/Current.text = "0"
 
 func _ready() -> void:
-    var splash = preload("uid://dky81dd77rcs2").instantiate()
-    splash.splash_played.connect(func(): _is_splashed = true)
-    add_child(splash)
     # 初始化预览循环定时器
     var preview_timer = Timer.new()
     preview_timer.name = "PreviewTimer"
     preview_timer.timeout.connect(_on_preview_timeout)
     add_child(preview_timer)
-
-    # 检查是否初始化
-    if not config.get_general("is_inited"):
-        var first_setup = preload("uid://baakbpgxj617d").instantiate()
-        add_child(first_setup)
-        await first_setup.setup_completed
-        config._init() # 重新加载配置，确保路径等信息被正确读取
+        
+    # 进行一次数据同步检查
+    _check_data_sync()
     
     # 连接收藏按钮点击事件
     var fav_rect = $MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer2/Love/Icon
@@ -168,6 +196,17 @@ func _ready() -> void:
     _update_sort_ui_text()
     _update_group_ui()
     refresh(true)
+    
+    var splash = preload("uid://dky81dd77rcs2").instantiate()
+    splash.splash_played.connect(func(): _is_splashed = true)
+    add_child(splash)
+    await splash.splash_played
+    # 检查是否初始化
+    if not config.get_general("is_inited"):
+        var first_setup = preload("uid://baakbpgxj617d").instantiate()
+        add_child(first_setup)
+        await first_setup.setup_completed
+        config._init() # 重新加载配置，确保路径等信息被正确读取
     
 # 分组筛选逻辑：始终从 master 列表进行筛选
 func _filter_items_by_group(items: Array) -> Array:
@@ -272,10 +311,12 @@ func _load_audio_stream(dir_path: String) -> AudioStream:
 func _on_preview_timeout():
     _start_preview_playback()
 
-# 模拟获取达成率的函数 - todo
-func _get_achievement_rate(metadata: Dictionary, path: String) -> float:
-    # 实际逻辑待实现，这里返回假数据
-    return 0.0
+# 模拟获取达成率的函数
+func _get_achievement_rate(_metadata: Dictionary, path: String) -> float:
+    var steam_id = path.get_file()
+    if not steam_id.is_valid_int() or steam_id.length() != 10: return 0.0
+    var record = _save_manager.get_workshop_record(steam_id)
+    return float(record.get("completeRate", 0.0))
 
 # 排序比较函数，用于 scroll_item 节点
 func _sort_items_nodes(a: Node, b: Node) -> bool:
@@ -333,6 +374,11 @@ func refresh(rescan: bool = true) -> void:
                     scroll_item.path = item_path
                     # 初始化收藏状态
                     scroll_item.favourite = config.is_fav(item_path)
+                    
+                    # 初始化成绩记录 (用于列表显示FC/Clear状态)
+                    # 统一使用 _get_record_for_node 从而支持替换后的成绩显示逻辑
+                    scroll_item.record = _get_record_for_node(scroll_item)
+                            
                     _master_items.append(scroll_item)
         
         # 2. 检查收藏夹中的内容是否都在列表中，如果不在（例如移动了位置或者仅有记录），可能需要补充
@@ -482,7 +528,7 @@ func _confirm_delete():
     if not node: return
     
     # 6. 删除检查 (支持多对替换关系)
-    var replace_pairs = config.get_work("replace_pairs", [])
+    var replace_pairs = _get_synced_replace_pairs()
     var is_involved = false
     var warn_msg = ""
     
@@ -509,14 +555,14 @@ func _confirm_delete():
 
     _active_dialog = preload("uid://bjwhxckwh2wyu").instantiate()
     _active_dialog.title_text = "警告"
-    _active_dialog.content_text = "是否从本地[color=RED]删除谱面文件[/color]？[br][b]※注意：[/b][u]从Steam下载的[/u]创意工坊谱面在此处删除后会[color=BLUE]使Rizline报“谱面文件损坏”错误[/color]。如需彻底删除/恢复请在Steam中[b]取消该谱面的订阅[/b]并[b]在Steam的“属性-创意工坊”中手动删除文件[/b]。收藏信息也会一并移除。[br]您[u]或许[/u]可以在系统回收站中找到被删除的谱面文件夹。"
+    _active_dialog.content_text = "是否从本地[color=RED]删除谱面文件[/color]？[br][b]※注意：[/b][u]从Steam下载的[/u]创意工坊谱面在此处删除后会[color=BLUE]使Rizline报“谱面文件损坏”错误[/color]。如需彻底删除/恢复请关闭Rizline，在Steam中[b]取消该谱面的订阅[/b]并[b]在Steam的“属性-创意工坊”中手动删除文件[/b]。收藏信息也会一并移除。[br]您[u]或许[/u]可以在系统回收站中找到被删除的谱面文件夹。"
     _active_dialog.check_pressed.connect(_on_delete_confirmed.bind(node.path))
     add_child(_active_dialog)
 
 # 执行删除操作
 func _on_delete_confirmed(path: String):
     # 删除时清理相关配置防止野指针
-    var replace_pairs = config.get_work("replace_pairs", [])
+    var replace_pairs = _get_synced_replace_pairs()
     var modified = false
     for i in range(replace_pairs.size() - 1, -1, -1):
         var pair = replace_pairs[i]
@@ -529,7 +575,7 @@ func _on_delete_confirmed(path: String):
             modified = true
             
     if modified:
-        config.set_work("replace_pairs", replace_pairs)
+        _save_synced_replace_pairs(replace_pairs)
 
     # 尝试移动到回收站
     var global_path = ProjectSettings.globalize_path(path)
@@ -835,7 +881,7 @@ func _on_load_pressed() -> void:
         _active_dialog = dialog
         return
     
-    var replace_pairs = config.get_work("replace_pairs", [])
+    var replace_pairs = _get_synced_replace_pairs()
     
     if node.type == 0: # Type.WORKSHOP
         # 1. & 4. Steam 谱面逻辑
@@ -873,7 +919,7 @@ func _on_load_pressed() -> void:
                 "local_path": "",
                 "local_metadata": {}
             })
-            config.set_work("replace_pairs", replace_pairs)
+            _save_synced_replace_pairs(replace_pairs)
             
             if is_instance_valid(_active_dialog): return
             var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
@@ -897,17 +943,34 @@ func _on_load_pressed() -> void:
         
         if pair_idx != -1:
             var steam_path = replace_pairs[pair_idx].get("steam_path")
+            
+            # 在复原文件前，保存当前成绩到本地谱面独立存档
+            _save_current_score_as_local(steam_path, replace_pairs[pair_idx].get("local_path", ""))
+            
             _revert_files_only(steam_path)
             
-            # 修改配置：重置该对为“仅选中目标”状态
+            # 修复：保存当前成绩到 local_score (作为冗余备份或旧逻辑兼容)
+            var steam_id = steam_path.get_file()
+            var current_score_json = _save_manager.get_sav_value(SaveManager.SaveFile.WORKSHOP, "record:" + steam_id, "")
+            replace_pairs[pair_idx]["local_score"] = current_score_json
+            
+            # 恢复 Steam 原谱面分数
+            var backup = replace_pairs[pair_idx].get("backup_score", "")
+            _save_manager.restore_workshop_score(steam_path, backup)
+            
+            # 修改配置
             replace_pairs[pair_idx]["local_path"] = ""
             replace_pairs[pair_idx]["local_metadata"] = {}
-            config.set_work("replace_pairs", replace_pairs)
+            # 清除备份的分数记录 (因为 Steam 分数已恢复)
+            if replace_pairs[pair_idx].has("backup_score"):
+                replace_pairs[pair_idx].erase("backup_score")
+                
+            _save_synced_replace_pairs(replace_pairs)
             
             if is_instance_valid(_active_dialog): return
             var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
             dialog.title_text = "提示"
-            dialog.content_text = "已取消 [color=GREEN]" + node.metadata.get("title", "未知") + "[/color] 的替换状态。[br]目标创意工坊谱面仍处于[b]选中待替换[/b]状态。"
+            dialog.content_text = "已取消 [color=GREEN]" + node.metadata.get("title", "未知") + "[/color] 的替换状态。[br]目标创意工坊谱面仍处于[b]选中待替换[/b]状态。[br]原谱面成绩已恢复。"
             dialog.hide_cancel = true
             add_child(dialog)
             _active_dialog = dialog
@@ -935,21 +998,43 @@ func _on_load_pressed() -> void:
         var target_path = replace_pairs[target_idx].get("steam_path")
         if not DirAccess.dir_exists_absolute(target_path):
             replace_pairs.remove_at(target_idx)
-            config.set_work("replace_pairs", replace_pairs)
+            _save_synced_replace_pairs(replace_pairs)
             push_error("Target steam level not found")
             return
             
         _perform_replace(target_path, node.path, node.metadata, target_idx)
 
 func _cancel_selection(path: String):
-    var replace_pairs = config.get_work("replace_pairs", [])
+    var replace_pairs = _get_synced_replace_pairs()
     for i in range(replace_pairs.size() - 1, -1, -1):
         if replace_pairs[i].get("steam_path") == path:
             replace_pairs.remove_at(i)
-    config.set_work("replace_pairs", replace_pairs)
+    _save_synced_replace_pairs(replace_pairs)
     refresh(false)
 
 func _perform_replace(target_path: String, source_path: String, source_metadata: Dictionary, pair_idx: int):
+    # 备份 Steam 谱面的分数
+    var replace_pairs = _get_synced_replace_pairs()
+    if pair_idx >= 0 and pair_idx < replace_pairs.size():
+        _backup_steam_score(target_path, replace_pairs[pair_idx])
+        
+        var steam_id = target_path.get_file()
+        var local_folder_name = source_path.get_file()
+        
+        # 修复：尝试读取该本地谱面独立保存的成绩
+        var saved_local_score = _save_manager.get_sav_value(SaveManager.SaveFile.WORKSHOP, "record:local:" + local_folder_name, null)
+        
+        if saved_local_score != null:
+             # 如果有历史成绩，恢复到当前 Steam ID 位置供游戏读取
+             _save_manager.set_sav_value(SaveManager.SaveFile.WORKSHOP, "record:" + steam_id, saved_local_score)
+        elif replace_pairs[pair_idx].has("local_score") and str(replace_pairs[pair_idx]["local_score"]) != "":
+             # 兼容旧逻辑：如果配置里有暂存的，也尝试恢复
+             _save_manager.set_sav_value(SaveManager.SaveFile.WORKSHOP, "record:" + steam_id, replace_pairs[pair_idx]["local_score"])
+        else:
+             # 首次游玩或无成绩，重置为空
+             var empty_record = {"score":0,"completeRate":0.0,"isFullCombo":false,"isClear":false,"hit":0,"bad":0,"miss":0,"maxHit":0,"maxScore":0}
+             _save_manager.set_sav_value(SaveManager.SaveFile.WORKSHOP, "record:" + steam_id, JSON.stringify(empty_record))
+        
     var dir = DirAccess.open(target_path)
     if not dir: return
     
@@ -984,11 +1069,11 @@ func _perform_replace(target_path: String, source_path: String, source_metadata:
         DirAccess.copy_absolute(local_img, illustration_cache_dir.path_join(steam_id))
     
     # 2.③ 保存记录
-    var replace_pairs = config.get_work("replace_pairs", [])
+    # var replace_pairs = config.get_work("replace_pairs", []) # Update to use synced
     if pair_idx >= 0 and pair_idx < replace_pairs.size():
         replace_pairs[pair_idx]["local_path"] = source_path
         replace_pairs[pair_idx]["local_metadata"] = source_metadata
-        config.set_work("replace_pairs", replace_pairs)
+        _save_synced_replace_pairs(replace_pairs)
     
     if is_instance_valid(_active_dialog): return
     var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
@@ -1001,7 +1086,7 @@ func _perform_replace(target_path: String, source_path: String, source_metadata:
     refresh(true)
 
 func _revert_level(path: String):
-    var replace_pairs = config.get_work("replace_pairs", [])
+    var replace_pairs = _get_synced_replace_pairs()
     var found_idx = -1
     for i in range(replace_pairs.size()):
         if replace_pairs[i].get("steam_path") == path:
@@ -1010,11 +1095,25 @@ func _revert_level(path: String):
             
     if found_idx == -1: return
     
+    # 在复原文件前，先保存当前成绩（这是本地谱面的成绩）
+    _save_current_score_as_local(path, replace_pairs[found_idx].get("local_path", ""))
+    
     _revert_files_only(path)
     
+    # 恢复 Steam 分数
+    var backup = replace_pairs[found_idx].get("backup_score", "")
+    _save_manager.restore_workshop_score(path, backup)
+    
     # 清除配置 (此函数被 Steam 谱面触发，意为彻底取消该对关系)
+    # 也可以选择不删除，而是保留配置但标记为未激活，以便下次替换时恢复分数?
+    # 根据题意 "取消替换...保存a的成绩"，这里确实应该保存下来。
+    # 但由于 _revert_level 逻辑是 "复原并取消选中"，意味着关系断裂。
+    # 如果要保留成绩供下次使用，逻辑会比较复杂（因为本地谱面是作为 Source 存在的）。
+    # 这里我们假设用户可能想保留这个 replace_pair 条目但清空 local。
+    
+    # 这里我们仅移除配置
     replace_pairs.remove_at(found_idx)
-    config.set_work("replace_pairs", replace_pairs)
+    _save_synced_replace_pairs(replace_pairs)
     
     refresh(true)
 
@@ -1058,3 +1157,146 @@ func _copy_dir_contents(from_dir: String, to_dir: String):
             if !dir.current_is_dir():
                 dir.copy(from_dir.path_join(file_name), to_dir.path_join(file_name))
             file_name = dir.get_next()
+
+# -------------------------------------------------------------------------
+# 数据同步与分数管理逻辑
+# -------------------------------------------------------------------------
+
+const SYNC_KEY = "rizline-sideloader"
+
+# 获取记录信息（优先从 workshop.sav 读，如果没有则 fallback 到 defaults）
+func _get_record_for_node(node: Node) -> Dictionary:
+    if not node: return {}
+    
+    var replace_pairs = _get_synced_replace_pairs()
+    
+    # CASE 1: 创意工坊谱面 (Workshop Item)
+    if node.type == 0: # Type.WORKSHOP
+        var steam_id = node.path.get_file()
+        if not steam_id.is_valid_int() or steam_id.length() != 10: return {}
+        
+        # 检查是否被替换
+        for pair in replace_pairs:
+            if pair.get("steam_path") == node.path:
+                # 如果被替换了且有本地路径，说明当前该位置运行的是本地谱面
+                # 用户希望此处显示“原成绩”，即备份的成绩
+                if pair.get("local_path", "") != "":
+                    if pair.has("backup_score"):
+                        var backup = pair["backup_score"]
+                        if typeof(backup) == TYPE_STRING and backup != "":
+                            var parsed = JSON.parse_string(backup)
+                            if parsed: return parsed
+                        elif typeof(backup) == TYPE_DICTIONARY:
+                            return backup
+                    # 如果没有备份成绩，返回空或者尝试读取实时（但这可能不符合预期），这里返回空以示区别
+                    return {}
+                break
+        
+        # 如果没被替换，显示真实存档
+        return _save_manager.get_workshop_record(steam_id)
+
+    # CASE 2: 本地谱面 (Local Item)
+    elif node.type == 1: # Type.LOCAL
+        # 检查是否作为源替换了某个 Steam 谱面
+        for pair in replace_pairs:
+            if pair.get("local_path") == node.path:
+                var target_steam_path = pair.get("steam_path", "")
+                var steam_id = target_steam_path.get_file()
+                
+                # 如果正在生效，显示该 Steam ID 下的实时存档（即当前游玩该本地谱面的成绩）
+                if steam_id.is_valid_int() and steam_id.length() == 10:
+                    return _save_manager.get_workshop_record(steam_id)
+                break
+        
+        # 如果未绑定，尝试读取独立保存的本地成绩
+        var local_folder_name = node.path.get_file()
+        var saved_local_score = _save_manager.get_sav_value(SaveManager.SaveFile.WORKSHOP, "record:local:" + local_folder_name, {})
+        if typeof(saved_local_score) == TYPE_DICTIONARY:
+            return saved_local_score
+        elif typeof(saved_local_score) == TYPE_STRING and saved_local_score != "":
+             var p = JSON.parse_string(saved_local_score)
+             return p if p else {}
+                
+    return {}
+
+# 检查 Local Config 与 Workshop Save 的同步状态
+func _check_data_sync():
+    var local_data = config.get_work("replace_pairs", [])
+    var sav_data = _save_manager.get_sav_value(SaveManager.SaveFile.WORKSHOP, SYNC_KEY, [])
+    
+    if JSON.stringify(local_data) != JSON.stringify(sav_data):
+        if local_data.is_empty() and not sav_data.is_empty():
+            # Local 空，Sav 有 -> 信任 Sav
+            print("Sync: Local emtpy, trusting Save.")
+            config.set_work("replace_pairs", sav_data)
+        elif not local_data.is_empty() and sav_data.is_empty():
+            # Local 有，Sav 空 -> 信任 Local
+            print("Sync: Save empty, trusting Local.")
+            _save_to_workshop_sav(local_data)
+        else:
+            # 冲突
+            _show_conflict_dialog(local_data, sav_data)
+
+func _show_conflict_dialog(local_data: Array, sav_data: Array):
+    if is_instance_valid(_active_dialog): return
+    var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
+    dialog.title_text = "数据冲突"
+    dialog.content_text = "检测到配置文件与存档文件(workshop.sav)中的替换记录不一致。[br]本地配置记录数: %d，存档文件记录数: %d[br]请选择保留哪一份数据？[br]点击 [b]√[/b] 保留本地配置覆盖存档；[br]点击 [b]x[/b] 保留存档配置覆盖本地。" % [local_data.size(), sav_data.size()]
+    
+    dialog.hide_cancel = false
+    
+    # 绑定确认 (√) -> 使用本地配置覆盖存档
+    dialog.check_pressed.connect(func(): 
+        _save_to_workshop_sav(local_data)
+        refresh(true)
+    )
+    
+    # 绑定取消 (x) -> 使用存档配置覆盖本地
+    if dialog.has_signal("cancel_pressed"):
+         dialog.cancel_pressed.connect(func():
+             config.set_work("replace_pairs", sav_data)
+             refresh(true)
+         )
+
+    add_child(dialog)
+    _active_dialog = dialog
+
+func _get_synced_replace_pairs() -> Array:
+    # 始终以 config 为准，但在 ready 时我们做了同步
+    return config.get_work("replace_pairs", [])
+
+func _save_synced_replace_pairs(data: Array):
+    config.set_work("replace_pairs", data)
+    _save_to_workshop_sav(data)
+
+func _save_to_workshop_sav(data: Array):
+    _save_manager.set_sav_value(SaveManager.SaveFile.WORKSHOP, SYNC_KEY, JSON.stringify(data))
+
+# 备份 Steam 分数到 pair data 中
+func _backup_steam_score(steam_path: String, pair_data: Dictionary):
+    var steam_id = steam_path.get_file()
+    var score_data = _save_manager.get_sav_value(SaveManager.SaveFile.WORKSHOP, "record:" + steam_id, null)
+    if score_data != null:
+        pair_data["backup_score"] = score_data
+    # 随后记得保存 pair_data 到 config/sav (由调用者 _perform_replace 触发 _save_synced_replace_pairs)
+
+# 恢复 Steam 分数
+func _restore_steam_score(steam_path: String, pair_data: Dictionary):
+    if pair_data.has("backup_score"):
+        var steam_id = steam_path.get_file()
+        var backup_json = pair_data["backup_score"]
+        _save_manager.set_sav_value(SaveManager.SaveFile.WORKSHOP, "record:" + steam_id, backup_json)
+
+# 辅助函数：将当前Steam槽位的成绩保存为本地谱面的独立成绩
+func _save_current_score_as_local(steam_path: String, local_path: String):
+    if local_path == "": return
+    
+    var steam_id = steam_path.get_file()
+    var local_folder_name = local_path.get_file()
+    
+    # 获取当前 Steam ID 下的成绩（即刚才玩出来的本地谱面成绩）
+    var current_score = _save_manager.get_sav_value(SaveManager.SaveFile.WORKSHOP, "record:" + steam_id, null)
+    
+    if current_score != null:
+        # 保存到独立 Key
+        _save_manager.set_sav_value(SaveManager.SaveFile.WORKSHOP, "record:local:" + local_folder_name, current_score)

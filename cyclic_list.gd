@@ -401,6 +401,12 @@ func _update_positions():
         # 修复：同步自定义变量状态（由于克隆不拷贝脚本变量）
         if "favourite" in expected_template and "favourite" in item:
             item.favourite = expected_template.favourite
+            
+        if "record" in expected_template and "record" in item:
+            item.record = expected_template.record
+            # 刷新状态颜色显示
+            var rec = item.record
+            item.set_status_color(bool(rec.get("isFullCombo", false)), bool(rec.get("isClear", false)))
 
         # 更新位置和数据索引
         item.set_meta("logical_index", logical_index)

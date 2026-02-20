@@ -70,14 +70,34 @@ func get_sav_value(save_file: SaveFile, key: String, default: Variant = null) ->
         
     var fa = FileAccess.open(path, FileAccess.READ)
     var json_str = decode_sav_bytes(fa.get_buffer(fa.get_length()))
-    var data_list = JSON.parse_string(json_str)
+    var data = JSON.parse_string(json_str)
     
-    if not data_list is Array:
+    if not data is Dictionary or not data.has("list"):
         return default
-        
-    for item in data_list:
-        if item.get("key") == key:
-            return str_to_var(item.get("value", ""))
+    
+    var list_arr = data["list"]
+    if not list_arr is Array:
+        return default
+
+    for item in list_arr:
+        if item is Dictionary and item.get("key") == key:
+            var val_str = item.get("value", "")
+            if not val_str is String:
+                return val_str # Should be string, but return as is if not
+            
+            # 尝试解析 JSON 用于复杂对象 (如 record)
+            if val_str.begins_with("{") or val_str.begins_with("["):
+                var parsed = JSON.parse_string(val_str)
+                if parsed != null: return parsed
+            
+            # 处理基本类型
+            if val_str == "True": return true
+            if val_str == "False": return false
+            if val_str.is_valid_float() and not val_str.is_valid_int(): return val_str.to_float()
+            if val_str.is_valid_int(): return val_str.to_int()
+            
+            return val_str
+            
     return default
 
 ## 获取指定存档文件中所有的键名列表
@@ -88,44 +108,82 @@ func get_sav_keys(save_file: SaveFile) -> Array:
         
     var fa = FileAccess.open(path, FileAccess.READ)
     var json_str = decode_sav_bytes(fa.get_buffer(fa.get_length()))
-    var data_list = JSON.parse_string(json_str)
+    var data = JSON.parse_string(json_str)
     
     var keys = []
-    if data_list is Array:
-        for item in data_list:
-            if item is Dictionary and item.has("key"):
-                keys.append(item["key"])
+    if data is Dictionary and data.has("list"):
+        var list_arr = data["list"]
+        if list_arr is Array:
+            for item in list_arr:
+                if item is Dictionary and item.has("key"):
+                    keys.append(item["key"])
     return keys
 
 ## 向指定的存档文件中写入键值对
 func set_sav_value(save_file: SaveFile, key: String, value: Variant) -> void:
     var path = _get_save_path(save_file)
-    var data_list: Array = []
+    var root_dict = {"list": []}
     
     if FileAccess.file_exists(path):
         var fa = FileAccess.open(path, FileAccess.READ)
         var json_str = decode_sav_bytes(fa.get_buffer(fa.get_length()))
         var parsed = JSON.parse_string(json_str)
-        if parsed is Array:
-            data_list = parsed
+        if parsed is Dictionary and parsed.has("list"):
+            root_dict = parsed
+    
+    if not root_dict["list"] is Array:
+        root_dict["list"] = []
 
+    var data_list = root_dict["list"]
     var found = false
-    var string_val = var_to_str(value)
+    
+    # 转换 value 为存档所需的字符串格式
+    var val_str = ""
+    if typeof(value) == TYPE_STRING:
+        val_str = value
+    elif typeof(value) == TYPE_DICTIONARY or typeof(value) == TYPE_ARRAY:
+        val_str = JSON.stringify(value)
+    elif typeof(value) == TYPE_BOOL:
+        val_str = "True" if value else "False"
+    else:
+        val_str = str(value)
     
     for item in data_list:
-        if item.get("key") == key:
-            item["value"] = string_val
+        if item is Dictionary and item.get("key") == key:
+            item["value"] = val_str
             found = true
             break
             
     if not found:
-        data_list.append({"key": key, "value": string_val})
+        data_list.append({"key": key, "value": val_str})
         
-    var new_json = JSON.stringify(data_list)
-    var encoded = encode_sav_bytes(new_json)
-    
+    var encoded = encode_sav_bytes(JSON.stringify(root_dict))
     var fa_write = FileAccess.open(path, FileAccess.WRITE)
     if fa_write:
         fa_write.store_buffer(encoded)
+        fa_write.close()
     else:
         push_error("Cannot write to save file: " + path)
+
+func get_workshop_record(steam_id: String) -> Dictionary:
+    var val = get_sav_value(SaveFile.WORKSHOP, "record:" + steam_id, {}) # default 改为 {}
+    if typeof(val) == TYPE_DICTIONARY:
+        return val
+    # 如果返回的是字符串（未正确解析），尝试解析
+    if typeof(val) == TYPE_STRING and (val.begins_with("{") or val == ""):
+        if val == "": return {}
+        var p = JSON.parse_string(val)
+        return p if p else {}
+    return {}
+
+func backup_workshop_score(steam_path: String) -> Variant:
+    var steam_id = steam_path.get_file()
+    return get_sav_value(SaveFile.WORKSHOP, "record:" + steam_id, null)
+
+func restore_workshop_score(steam_path: String, backup_data: Variant):
+    if backup_data == null: return
+    if typeof(backup_data) == TYPE_STRING and backup_data == "": return
+    if typeof(backup_data) == TYPE_DICTIONARY and backup_data.is_empty(): return
+    
+    var steam_id = steam_path.get_file()
+    set_sav_value(SaveFile.WORKSHOP, "record:" + steam_id, backup_data)
