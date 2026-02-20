@@ -91,19 +91,22 @@ func _on_selected(node, idx):
     if node:
         chart_type_label.text = "创意工坊" if node.type == node.Type.WORKSHOP else "本地谱面"
         
-        # 3. 追加状态文字
-        var current_steam = config.get_work("current_steam_level", {})
-        var current_local = config.get_work("current_local_replace_level", {})
+        # 3. 追加状态文字 (支持多对替换关系)
+        var replace_pairs = config.get_work("replace_pairs", [])
         
         if node.type == node.Type.WORKSHOP:
-            if current_steam.get("path") == node.path:
-                if current_local.has("path"):
-                     chart_type_label.text += "【已替换】"
-                else:
-                     chart_type_label.text += "【已选中】"
+            for i in range(replace_pairs.size()):
+                if replace_pairs[i].get("steam_path") == node.path:
+                    if replace_pairs[i].get("local_path", "") != "":
+                         chart_type_label.text += "【已替换%d】" % (i + 1)
+                    else:
+                         chart_type_label.text += "【已选中%d】" % (i + 1)
+                    break
         elif node.type == node.Type.LOCAL:
-            if current_local.get("path") == node.path:
-                chart_type_label.text += "【源文件】"
+            for i in range(replace_pairs.size()):
+                if replace_pairs[i].get("local_path") == node.path:
+                    chart_type_label.text += "【源文件%d】" % (i + 1)
+                    break
                 
         load_btn.text = " SET" if node.type == node.Type.WORKSHOP else "LOAD"
         load_btn.icon = preload("uid://cy1knjjngl56f") if node.type == node.Type.WORKSHOP else preload("uid://0pdxj8y8hgih")
@@ -478,18 +481,20 @@ func _confirm_delete():
     var node = cycle_list.get_selected_node()
     if not node: return
     
-    # 6. 删除检查
-    var current_steam = config.get_work("current_steam_level", {})
-    var current_local = config.get_work("current_local_replace_level", {})
+    # 6. 删除检查 (支持多对替换关系)
+    var replace_pairs = config.get_work("replace_pairs", [])
     var is_involved = false
     var warn_msg = ""
     
-    if node.path == current_steam.get("path"):
-        is_involved = true
-        warn_msg = "该谱面正在参与替换（作为目标），删除将导致需要重新复原或数据丢失。"
-    elif node.path == current_local.get("path"):
-        is_involved = true
-        warn_msg = "该谱面正在参与替换（作为源），删除可能影响替换状态。"
+    for pair in replace_pairs:
+        if node.path == pair.get("steam_path"):
+            is_involved = true
+            warn_msg = "该谱面正在参与替换（作为目标），删除将导致需要重新复原或数据丢失。"
+            break
+        elif node.path == pair.get("local_path"):
+            is_involved = true
+            warn_msg = "该谱面正在参与替换（作为源），删除可能影响替换状态。"
+            break
         
     if is_involved:
         var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
@@ -504,22 +509,27 @@ func _confirm_delete():
 
     _active_dialog = preload("uid://bjwhxckwh2wyu").instantiate()
     _active_dialog.title_text = "警告"
-    _active_dialog.content_text = "是否从本地[color=RED]删除谱面文件[/color]？[br][b]※注意：[/b][u]从Steam下载的[/u]创意工坊谱面在删除后会被Rizline重新下载。如需彻底删除请在Steam中[b]取消该谱面的订阅[/b]。收藏信息也会一并移除。[br]您[u]或许[/u]可以在系统回收站中找到被删除的谱面文件夹。"
+    _active_dialog.content_text = "是否从本地[color=RED]删除谱面文件[/color]？[br][b]※注意：[/b][u]从Steam下载的[/u]创意工坊谱面在此处删除后会[color=BLUE]使Rizline报“谱面文件损坏”错误[/color]。如需彻底删除/恢复请在Steam中[b]取消该谱面的订阅[/b]并[b]在Steam的“属性-创意工坊”中手动删除文件[/b]。收藏信息也会一并移除。[br]您[u]或许[/u]可以在系统回收站中找到被删除的谱面文件夹。"
     _active_dialog.check_pressed.connect(_on_delete_confirmed.bind(node.path))
     add_child(_active_dialog)
 
 # 执行删除操作
 func _on_delete_confirmed(path: String):
     # 删除时清理相关配置防止野指针
-    var current_steam = config.get_work("current_steam_level", {})
-    var current_local = config.get_work("current_local_replace_level", {})
-    
-    if path == current_steam.get("path"):
-        config.remove_work("current_steam_level")
-        config.remove_work("current_local_replace_level")
-    elif path == current_local.get("path"):
-        # 仅移除源记录，但Steam端的替换状态其实还在（处于“孤儿”状态），这里简单清理
-        config.remove_work("current_local_replace_level")
+    var replace_pairs = config.get_work("replace_pairs", [])
+    var modified = false
+    for i in range(replace_pairs.size() - 1, -1, -1):
+        var pair = replace_pairs[i]
+        if path == pair.get("steam_path"):
+            replace_pairs.remove_at(i)
+            modified = true
+        elif path == pair.get("local_path"):
+            pair["local_path"] = ""
+            pair["local_metadata"] = {}
+            modified = true
+            
+    if modified:
+        config.set_work("replace_pairs", replace_pairs)
 
     # 尝试移动到回收站
     var global_path = ProjectSettings.globalize_path(path)
@@ -825,34 +835,50 @@ func _on_load_pressed() -> void:
         _active_dialog = dialog
         return
     
-    var current_steam = config.get_work("current_steam_level", {})
-    var current_local = config.get_work("current_local_replace_level", {})
+    var replace_pairs = config.get_work("replace_pairs", [])
     
     if node.type == 0: # Type.WORKSHOP
         # 1. & 4. Steam 谱面逻辑
-        if current_steam.get("path") == node.path and current_local.has("path"):
-            # 4. 已进行过替换，提示复原
-            if is_instance_valid(_active_dialog): return
-            var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
-            dialog.title_text = "提示"
-            dialog.content_text = "该Steam谱面已进行过替换操作，若继续将[b]复原谱面文件并取消选中[/b]"
-            dialog.check_pressed.connect(_revert_level.bind(node.path))
-            add_child(dialog)
-            _active_dialog = dialog
+        var found_idx = -1
+        for i in range(replace_pairs.size()):
+            if replace_pairs[i].get("steam_path") == node.path:
+                found_idx = i
+                break
+                
+        if found_idx != -1:
+            var pair = replace_pairs[found_idx]
+            if pair.get("local_path", "") != "":
+                # 4. 已进行过替换，提示复原
+                if is_instance_valid(_active_dialog): return
+                var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
+                dialog.title_text = "提示"
+                dialog.content_text = "该Steam谱面已进行过替换操作，若继续将[b]复原谱面文件并取消选中[/b]"
+                dialog.check_pressed.connect(_revert_level.bind(node.path))
+                add_child(dialog)
+                _active_dialog = dialog
+            else:
+                # 仅选中，提示取消选中
+                if is_instance_valid(_active_dialog): return
+                var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
+                dialog.title_text = "提示"
+                dialog.content_text = "该Steam谱面已处于选中状态，是否取消选中？"
+                dialog.check_pressed.connect(_cancel_selection.bind(node.path))
+                add_child(dialog)
+                _active_dialog = dialog
         else:
             # 1. 设置为待替换
-            config.set_work("current_steam_level", {
-                "path": node.path,
-                "metadata": node.metadata
+            replace_pairs.append({
+                "steam_path": node.path,
+                "steam_metadata": node.metadata,
+                "local_path": "",
+                "local_metadata": {}
             })
-            
-            # 如果之前有选中的local但还没替换，这里其实是换了个目标，local可以保留或者清空
-            # 题目未明确，这里保留逻辑简单：只设置当前steam
+            config.set_work("replace_pairs", replace_pairs)
             
             if is_instance_valid(_active_dialog): return
             var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
             dialog.title_text = "提示"
-            dialog.content_text = "已设置 " + node.metadata.get("title", "未命名") + " 为待替换的Steam谱面"
+            dialog.content_text = "已设置 " + node.metadata.get("title", "未命名") + " 为待替换的Steam谱面 (标号: %d)" % replace_pairs.size()
             dialog.hide_cancel = true
             add_child(dialog)
             _active_dialog = dialog
@@ -862,39 +888,73 @@ func _on_load_pressed() -> void:
 
     elif node.type == 1: # Type.LOCAL
         # 2. 本地谱面逻辑
-        if not current_steam or not current_steam.has("path"):
-            # 5. 未选择目标
+        # 检查是否已作为源，如果是，则取消替换（复原文件但保留选中状态）
+        var pair_idx = -1
+        for i in range(replace_pairs.size()):
+            if replace_pairs[i].get("local_path") == node.path:
+                pair_idx = i
+                break
+        
+        if pair_idx != -1:
+            var steam_path = replace_pairs[pair_idx].get("steam_path")
+            _revert_files_only(steam_path)
+            
+            # 修改配置：重置该对为“仅选中目标”状态
+            replace_pairs[pair_idx]["local_path"] = ""
+            replace_pairs[pair_idx]["local_metadata"] = {}
+            config.set_work("replace_pairs", replace_pairs)
+            
             if is_instance_valid(_active_dialog): return
             var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
             dialog.title_text = "提示"
-            dialog.content_text = "请先选择一个 [b]Steam谱面[/b] 点击 SET 设为目标，再选择本地谱面进行替换。"
+            dialog.content_text = "已取消 [color=GREEN]" + node.metadata.get("title", "未知") + "[/color] 的替换状态。[br]目标创意工坊谱面仍处于[b]选中待替换[/b]状态。"
+            dialog.hide_cancel = true
+            add_child(dialog)
+            _active_dialog = dialog
+            
+            refresh(true)
+            return
+            
+        # 寻找空余的 target
+        var target_idx = -1
+        for i in range(replace_pairs.size()):
+            if replace_pairs[i].get("local_path", "") == "":
+                target_idx = i
+                break
+                
+        if target_idx == -1:
+            if is_instance_valid(_active_dialog): return
+            var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
+            dialog.title_text = "提示"
+            dialog.content_text = "当前没有空余的待替换目标创意工坊谱面可用，请先选择一个Steam谱面点击SET。"
             dialog.hide_cancel = true
             add_child(dialog)
             _active_dialog = dialog
             return
             
-        var target_path = current_steam.get("path")
+        var target_path = replace_pairs[target_idx].get("steam_path")
         if not DirAccess.dir_exists_absolute(target_path):
-            config.remove_work("current_steam_level")
+            replace_pairs.remove_at(target_idx)
+            config.set_work("replace_pairs", replace_pairs)
             push_error("Target steam level not found")
             return
             
-        # 检查该目标是否已经被替换过
-        if current_local.has("path"): # 已有替换记录
-            if is_instance_valid(_active_dialog): return
-            var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
-            dialog.title_text = "替换确认"
-            dialog.content_text = "目标Steam谱面已被替换为 [color=BLUE]" + current_local.get("metadata", {}).get("title", "未知") + "[/color]。[br]是否将其替换为当前选中的 [color=GREEN]" + node.metadata.get("title", "未知") + "[/color]？"
-            dialog.check_pressed.connect(_perform_replace.bind(target_path, node.path, node.metadata))
-            add_child(dialog)
-            _active_dialog = dialog
-            return
-            
-        _perform_replace(target_path, node.path, node.metadata)
+        _perform_replace(target_path, node.path, node.metadata, target_idx)
 
-func _perform_replace(target_path: String, source_path: String, source_metadata: Dictionary):
+func _cancel_selection(path: String):
+    var replace_pairs = config.get_work("replace_pairs", [])
+    for i in range(replace_pairs.size() - 1, -1, -1):
+        if replace_pairs[i].get("steam_path") == path:
+            replace_pairs.remove_at(i)
+    config.set_work("replace_pairs", replace_pairs)
+    refresh(false)
+
+func _perform_replace(target_path: String, source_path: String, source_metadata: Dictionary, pair_idx: int):
     var dir = DirAccess.open(target_path)
     if not dir: return
+    
+    var steam_id = target_path.get_file()
+    var illustration_cache_dir = OS.get_temp_dir().path_join("PigeonGames/Rizline/workshop/cache/illustrations")
     
     # 2.① 处理文件移动/清理
     var origin_dir = target_path.path_join("origin_level")
@@ -904,6 +964,11 @@ func _perform_replace(target_path: String, source_path: String, source_metadata:
         var files = dir.get_files()
         for f in files:
             dir.rename(target_path.path_join(f), origin_dir.path_join(f))
+            
+        # 备份原始曲绘
+        var cached_img = illustration_cache_dir.path_join(steam_id)
+        if FileAccess.file_exists(cached_img):
+            DirAccess.copy_absolute(cached_img, origin_dir.path_join(steam_id))
     else:
         # 已替换过：仅清理根目录下现有的（上一次替换的）文件
         var files = dir.get_files()
@@ -913,16 +978,22 @@ func _perform_replace(target_path: String, source_path: String, source_metadata:
     # 2.② 拷贝本地文件到目标
     _copy_dir_contents(source_path, target_path)
     
+    # 替换缓存中的曲绘
+    var local_img = source_path.path_join("illustration")
+    if FileAccess.file_exists(local_img):
+        DirAccess.copy_absolute(local_img, illustration_cache_dir.path_join(steam_id))
+    
     # 2.③ 保存记录
-    config.set_work("current_local_replace_level", {
-        "path": source_path,
-        "metadata": source_metadata
-    })
+    var replace_pairs = config.get_work("replace_pairs", [])
+    if pair_idx >= 0 and pair_idx < replace_pairs.size():
+        replace_pairs[pair_idx]["local_path"] = source_path
+        replace_pairs[pair_idx]["local_metadata"] = source_metadata
+        config.set_work("replace_pairs", replace_pairs)
     
     if is_instance_valid(_active_dialog): return
     var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
     dialog.title_text = "成功"
-    dialog.content_text = "替换完成！"
+    dialog.content_text = "替换完成！(标号: %d)[br]注：Rizline中曲绘刷新需要重新进入“工坊”页。" % (pair_idx + 1)
     dialog.hide_cancel = true
     add_child(dialog)
     _active_dialog = dialog
@@ -930,35 +1001,53 @@ func _perform_replace(target_path: String, source_path: String, source_metadata:
     refresh(true)
 
 func _revert_level(path: String):
-    var current_steam = config.get_work("current_steam_level", {})
-    if current_steam.get("path") != path: return
+    var replace_pairs = config.get_work("replace_pairs", [])
+    var found_idx = -1
+    for i in range(replace_pairs.size()):
+        if replace_pairs[i].get("steam_path") == path:
+            found_idx = i
+            break
+            
+    if found_idx == -1: return
     
+    _revert_files_only(path)
+    
+    # 清除配置 (此函数被 Steam 谱面触发，意为彻底取消该对关系)
+    replace_pairs.remove_at(found_idx)
+    config.set_work("replace_pairs", replace_pairs)
+    
+    refresh(true)
+
+# 新增：仅处理文件复原的逻辑（不处理配置）
+func _revert_files_only(path: String):
     var dir = DirAccess.open(path)
     if not dir: return
     
-    # 4. 复原
-    # 删除当前根目录下的所有文件 (替换后的文件)
-    # 注意：不要删除 origin_level 文件夹
+    var steam_id = path.get_file()
+    var illustration_cache_dir = OS.get_temp_dir().path_join("PigeonGames/Rizline/workshop/cache/illustrations")
+    
+    # 1. 删除当前根目录下的所有文件 (替换后的文件)
     var files = dir.get_files()
     for f in files:
         dir.remove(f)
         
-    # 将 origin_level 下的文件移回
+    # 2. 将 origin_level 下的文件移回
     var origin_dir_path = path.path_join("origin_level")
     var origin_dir = DirAccess.open(origin_dir_path)
     if origin_dir:
         var origin_files = origin_dir.get_files()
         for f in origin_files:
-            origin_dir.rename(origin_dir_path.path_join(f), path.path_join(f))
+            if f == steam_id:
+                # 恢复曲绘到缓存
+                DirAccess.copy_absolute(origin_dir_path.path_join(f), illustration_cache_dir.path_join(steam_id))
+            else:
+                origin_dir.rename(origin_dir_path.path_join(f), path.path_join(f))
         
-        # 删除 origin_level 文件夹
+        # 3. 删除 origin_level 文件夹
+        # 注意：DirAccess.remove对于非空文件夹会失败，需要先清理里面的文件
+        for f in origin_dir.get_files():
+            origin_dir.remove(f)
         dir.remove("origin_level")
-    
-    # 清除配置
-    config.remove_work("current_steam_level")
-    config.remove_work("current_local_replace_level")
-    
-    refresh(true)
 
 func _copy_dir_contents(from_dir: String, to_dir: String):
     var dir = DirAccess.open(from_dir)

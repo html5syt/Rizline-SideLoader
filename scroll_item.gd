@@ -91,7 +91,11 @@ func selected(node):
 func _get_steam_illustration() -> Texture2D:
     var steam_id = path.split("/")[-1]
     var cache_dir = OS.get_temp_dir().path_join("PigeonGames/Rizline/workshop/cache/illustrations")
-    var illustration_local_path = cache_dir.path_join(steam_id)
+    
+    # 优先从备份目录读取（针对已替换的谱面显示原始曲绘）
+    var illustration_local_path = path.path_join("origin_level").path_join(steam_id)
+    if not FileAccess.file_exists(illustration_local_path):
+        illustration_local_path = cache_dir.path_join(steam_id)
     
     if FileAccess.file_exists(illustration_local_path):
         var file = FileAccess.open(illustration_local_path, FileAccess.READ)

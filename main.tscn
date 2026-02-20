@@ -1287,7 +1287,7 @@ horizontal_alignment = 1
 layout_mode = 2
 theme_override_fonts/font = ExtResource("14_2cqfq")
 theme_override_font_sizes/font_size = 17
-text = "加载"
+text = "加载/设置"
 horizontal_alignment = 1
 
 [node name="Import" type="FileDialog" parent="." unique_id=1969486458]
