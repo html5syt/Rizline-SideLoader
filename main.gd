@@ -26,8 +26,14 @@ enum SFXType {
     SETUP
 }
 
-var current_sort_option: SortOption = SortOption.NAME
-var current_sort_direction: SortDirection = SortDirection.ASCENDING
+var current_sort_option: SortOption = SortOption.NAME:
+    set(value):
+        current_sort_option = value
+        config.set_general("last_sort_option", value)
+var current_sort_direction: SortDirection = SortDirection.ASCENDING:
+    set(value):
+        current_sort_direction = value
+        config.set_general("last_sort_direction", value)
 var current_group: GroupType = GroupType.ALL
 
 var _master_items: Array[Control] = [] # 缓存所有项实例
@@ -311,11 +317,9 @@ func _load_audio_stream(dir_path: String) -> AudioStream:
 func _on_preview_timeout():
     _start_preview_playback()
 
-# 模拟获取达成率的函数
-func _get_achievement_rate(_metadata: Dictionary, path: String) -> float:
-    var steam_id = path.get_file()
-    if not steam_id.is_valid_int() or steam_id.length() != 10: return 0.0
-    var record = _save_manager.get_workshop_record(steam_id)
+# 获取达成率的函数
+func _get_achievement_rate(node: Node) -> float:
+    var record = _get_record_for_node(node)
     return float(record.get("completeRate", 0.0))
 
 # 排序比较函数，用于 scroll_item 节点
@@ -339,8 +343,8 @@ func _sort_items_nodes(a: Node, b: Node) -> bool:
         SortOption.ACHIEVEMENT:
             # 由于 scroll_item 可能没有缓存 achievement，这里可能需要实时计算或先存入 metadata
             # 简单起见，假设 Node 上可以动态挂载数据或 metadata 中有
-            var ach_a = _get_achievement_rate(a.metadata, a.path)
-            var ach_b = _get_achievement_rate(b.metadata, b.path)
+            var ach_a = _get_achievement_rate(a)
+            var ach_b = _get_achievement_rate(b)
             ret = ach_a < ach_b
     
     if current_sort_direction == SortDirection.DESCENDING:
@@ -970,7 +974,7 @@ func _on_load_pressed() -> void:
             if is_instance_valid(_active_dialog): return
             var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
             dialog.title_text = "提示"
-            dialog.content_text = "已取消 [color=GREEN]" + node.metadata.get("title", "未知") + "[/color] 的替换状态。[br]目标创意工坊谱面仍处于[b]选中待替换[/b]状态。[br]原谱面成绩已恢复。"
+            dialog.content_text = "已取消 [color=BLUE]" + node.metadata.get("title", "未知") + "[/color] 的替换状态。[br]目标创意工坊谱面仍处于[b]选中待替换[/b]状态。[br]原谱面成绩已恢复。"
             dialog.hide_cancel = true
             add_child(dialog)
             _active_dialog = dialog
@@ -1078,7 +1082,7 @@ func _perform_replace(target_path: String, source_path: String, source_metadata:
     if is_instance_valid(_active_dialog): return
     var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
     dialog.title_text = "成功"
-    dialog.content_text = "替换完成！(标号: %d)[br]注：Rizline中曲绘刷新需要重新进入“工坊”页。" % (pair_idx + 1)
+    dialog.content_text = "替换完成！(标号: %d)[br]注：1. Rizline中曲绘刷新需要[b]重新进入“工坊”页[/b][br]2. 成绩刷新[b]需要重启Rizline并同步云存档[/b][br]3. 本地谱面成绩取[b]最近一次的成绩[/b]保留[br]4. Rizline中“关卡设计”项为原有Steam谱面的设计者" % (pair_idx + 1)
     dialog.hide_cancel = true
     add_child(dialog)
     _active_dialog = dialog
@@ -1241,7 +1245,7 @@ func _show_conflict_dialog(local_data: Array, sav_data: Array):
     if is_instance_valid(_active_dialog): return
     var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
     dialog.title_text = "数据冲突"
-    dialog.content_text = "检测到配置文件与存档文件(workshop.sav)中的替换记录不一致。[br]本地配置记录数: %d，存档文件记录数: %d[br]请选择保留哪一份数据？[br]点击 [b]√[/b] 保留本地配置覆盖存档；[br]点击 [b]x[/b] 保留存档配置覆盖本地。" % [local_data.size(), sav_data.size()]
+    dialog.content_text = "检测到配置文件与存档文件(workshop.sav)中的替换记录不一致。[br]本地配置记录数: %d，存档文件记录数: %d[br]点击 [b]√[/b] 保留本地配置覆盖存档；[br]点击 [b]x[/b] 保留存档配置覆盖本地。[color=RED]*建议选择，否则会导致Steam谱面成绩丢失[/color]" % [local_data.size(), sav_data.size()]
     
     dialog.hide_cancel = false
     

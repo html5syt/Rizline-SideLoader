@@ -66,24 +66,25 @@ func _on_open_save_path_pressed() -> void:
 
 
 func _on_open_rizline_pressed() -> void:
-    var steam_root_path = config.get_general("steam_root_path")
-    if steam_root_path:
-        var rizline_path = DirAccess.open(steam_root_path)
-        if rizline_path:
-            rizline_path.change_dir("./steamapps/common/Rizline")
-            OS.shell_open(rizline_path.get_current_dir().path_join("Rizline.exe"))
-        else:
-            var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
-            dialog.title_text = "错误"
-            dialog.content_text = "Rizline路径无效，请检查Steam路径设置是否正确！"
-            dialog.hide_cancel = true
-            add_child(dialog)
-    else:
-        var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
-        dialog.title_text = "错误"
-        dialog.content_text = "Steam路径未设置或无效，请先进行初始设置！"
-        dialog.hide_cancel = true
-        add_child(dialog)
+    #var steam_root_path = config.get_general("steam_root_path")
+    #if steam_root_path:
+        #var rizline_path = DirAccess.open(steam_root_path)
+        #if rizline_path:
+            #rizline_path.change_dir("./steamapps/common/Rizline")
+            #OS.shell_open(rizline_path.get_current_dir().path_join("Rizline.exe"))
+        #else:
+            #var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
+            #dialog.title_text = "错误"
+            #dialog.content_text = "Rizline路径无效，请检查Steam路径设置是否正确！"
+            #dialog.hide_cancel = true
+            #add_child(dialog)
+    #else:
+        #var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
+        #dialog.title_text = "错误"
+        #dialog.content_text = "Steam路径未设置或无效，请先进行初始设置！"
+        #dialog.hide_cancel = true
+        #add_child(dialog)
+    OS.shell_open("steam://rungameid/2272590")
 
 
 func _on_open_rizline_editor_pressed() -> void:
