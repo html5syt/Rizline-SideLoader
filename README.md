@@ -1,5 +1,5 @@
 <div align=center>
-<img width="128" src="icon.png" >
+<img width="128" src="src/icon.png" >
 </div>
 <h1 align="center">Rizline SideLoader</h1>
 
