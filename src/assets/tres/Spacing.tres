@@ -1,0 +1,7 @@
+[gd_resource type="FontVariation" format=3 uid="uid://cldulxdjd1mho"]
+
+[ext_resource type="FontFile" uid="uid://dndp060cphkkm" path="res://assets/tres/Source Han Sans CN&Comfortaa Hybrid.ttf" id="1_6xhx5"]
+
+[resource]
+base_font = ExtResource("1_6xhx5")
+spacing_glyph = 1
