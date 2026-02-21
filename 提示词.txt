@@ -1,0 +1,159 @@
+在当前文件中编写一个Godot 4自定义节点，以实现“垂直循环列表”，需包含如下功能：
+1. 提供函数向该列表中添加一个或多个场景（预制件）
+2. 提供函数根据索引序号删除指定prefab、清空列表
+3. 当列表项目≥1且当前所有列表项目显示高度不足以填满整个列表区域时，重复prefab直至填满整个列表显示区域。（即需要保证列表看起来是满的，不能拉伸prefab）
+4. 可使用键盘上下键/鼠标滚轮切换选中选项（注意：鼠标滚轮滚动一次等同于按一次上下键，而不是滚动一页；设置focus_neighbor
+_*属性防止焦点跑到其他按钮上）
+5. 使选中项始终保持在列表显示区域中央
+6. 切换选项时发出信号，包含新选择的prefab节点及其索引序号本身用于处理
+7. 提供函数获取当前选中项目索引、节点本身、列表长度
+8. 使用@tool使其布局在编辑器中可见
+9. 在切换等移动时使用三次方缓入缓出动画
+注意：不要创造不存在的引擎函数，不要过度复杂化。
+
+在该文件中编写一个refresh函数，执行以下功能：
+1. 使用config.get_var("General","workshop_root_path")读取创意工坊路径
+2. 分别遍历1中得到的路径和user://custom_local_levels下的一级子文件夹，并检查每个子文件夹是否有效（是否含有chart.json,metadata.json,song.mp3/song.ogg文件），无效的不应被记录
+3. 将2中得到的遍历结果分为一个嵌套列表返回：[[创意工坊子文件夹完整路径], [本地子文件夹完整路径]]
+
+为_get_steam_illustration函数在最后添加功能：
+当未能找到本地图片时，访问https://steamcommunity.com/sharedfiles/filedetails/?id=(steam_id)并从<head>中获取<link rel="image\\\_src" href="图像链接">。去除图像链接的所有查询参数，将得到的图片下载并以steam_id为名（无扩展名）另存为到OS.get_temp_dir().path_join("PigeonGames/Rizline/workshop/cache/illustrations")下，并将该图片作为纹理返回。
+另外对该函数进行异步化改造，以解决较慢的下载速度。
+
+为刷新列表函数添加排序功能：
+排序依据在每个item的metadata中，metadata示例如下：
+{
+    "title": "Tutorial-Sideload测试11",
+    "composer": "A-39-TEST",
+    "difficulty": 0,
+    "level": 15,
+    "maxHit": 3600,
+    "maxScore": 1001100,
+    "previewTime": 1.00000143
+}
+排序选项如下：
+1. 名称（title）
+2. 等级（先取difficulty，相同时取level）
+3. 达成率（由于还没实现，假定达成率数据（float）来自于todo()函数）
+提供enum选择排序选项、排序方向（升序降序，默认升序）。
+
+添加分组功能：
+1. 分组标志：每个item都有type变量：type: int = Type.LOCAL/WORKSHOP。
+2. 分组类别：All-所有项目，Local-本地（LOCAL），WorkShop-创意工坊（WORKSHOP）
+3. 切换：按照2中的顺序，当按下LShift时向左切换，按下RShift时向右切换。①对列表进行筛选并刷新（不要再次初始化列表项）②设置选中分组标签字体颜色为Color(0.416, 0.38, 0.812)，其他标签为Color(0.655, 0.639, 1.0)。
+标签：MarginContainer/UIContainer/RightPannel/Head/BG/MarginContainer/HBoxContainer/HBoxTabsContainer/All
+MarginContainer/UIContainer/RightPannel/Head/BG/MarginContainer/HBoxContainer/HBoxTabsContainer/Local
+MarginContainer/UIContainer/RightPannel/Head/BG/MarginContainer/HBoxContainer/HBoxTabsContainer/WorkShop
+
+添加收藏功能：
+1. 当按下F5（rs_favourite）或MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer2/Love/Icon被点击（gui_input）时切换收藏状态，未收藏/取消收藏则设置modulate为Color(0.89, 0.89, 0.89)，已收藏则设置为Color(1.0, 0.494, 0.451)
+2. 通过config中func set_fav(path: String, metadata: Dictionary)设置收藏的歌曲metadata及其path
+3. 在config类中添加函数以支持取消收藏
+4. 在初始化列表、切换分类时使用get_favs检查是否有收藏曲目，如有，则：①设置MarginContainer/UIContainer/RightPannel/Head/BG/MarginContainer/HBoxContainer/HBoxTabsContainer/Favourite可见②加入到分类列表中③当切换到的时候使用保存的path和metadata构建列表
+5. 当取消收藏时反向4中的过程，并刷新、写入收藏列表
+6.1中的收藏状态指示需要实时刷新，选中项的收藏状态保存于该item实例的favourite（bool）变量中。
+
+添加删除功能：
+当按下MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer/Delete（gui_input）时使用以下代码实例化一个对话框：
+            var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
+            dialog.title_text = "警告"
+            dialog.content_text = "是否从本地[color=RED]删除谱面文件[/color]？[br][b]※注意：[/b][u]从Steam下载的[/u]创意工坊谱面在删除后会被Rizline重新下载。如需彻底删除请在Steam中[b]取消该谱面的订阅[/b]。收藏信息也会一并移除。[br]您[u]或许[/u]可以在系统回收站中找到被删除的谱面文件夹。"
+            add_child(dialog)
+并在该对话框发出check_pressed信号后删除path所指向的文件夹（若可以放进回收站的放进回收站），如有收藏该谱面的则删除（取消收藏）相关信息，之后使用refresh(true)重新扫描目录。
+
+添加导入/导出功能：
+0. 谱面数据为一个zip压缩包，包含：chart.json,metadata.json,song.mp3/song.ogg，以及illustration.png/jpg或者以steam workshop工件ID命名（10位纯数字）的无扩展名jpg/png图片。
+导入：
+1. 调用方提供一个或多个指向压缩包的路径数组，分别对每一个压缩包进行下面的（2，3条）处理
+2. 若压缩包包含无扩展名jpg/png图片（illustration.png/jpg可有可无），则视作来自steam的谱面。将数据解压到对应的steam路径。（无扩展名jpg/png图片和其他数据存放的路径不同，阅读相关读取文件的代码得知路径。）
+3. 否则（包含illustration.png/jpg或者2者均不存在的）视作本地谱面。将所有数据(包括illustration.png/jpg)解压到user://custom_local_levels/<从0开始编号的文件夹>下
+4. 所有压缩包导入完成后刷新列表refresh(true)。
+导出：
+1. 调用方提供①一个或多个ScrollItem实例数组，从中读取path、type、metadata变量②一个文件夹路径用于保存导出后的压缩包。分别对每一个实例进行如下处理
+2. 若为本地谱面，则直接打包对应path下所有文件（无需在压缩包内部嵌套一个子文件夹）到zip文件
+3. 否则除了打包path下的所有文件以外，还需要打包PigeonGames\Rizline\workshop\cache\illustrations下对应的曲绘文件到压缩包中（查看读取steam曲绘的代码了解详情）
+4. 导出到指定路径，每个压缩包命名分别为metadata中的相关信息：title-composer-difficulty（需要转换成UI显示文字值）.level.zip
+全部导入/导出完后使用以下代码实例化一个对话框：
+            var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
+            dialog.title_text = "提示"
+            dialog.content_text = "已从"+<压缩包路径，如有多个显示第一个并加等字>+"导入谱面"（或，按照实际情况选择）"已导出到"+<导出路径>
+            dialog.hide_cancel = true
+            add_child(dialog)
+
+添加预览音乐片段播放功能：
+1. 在选中项的metadata中包含previewTime键，值为开始位置占总时长比例（float）
+2. 音乐文件位于path下song.mp3/song.ogg文件，加载到SongPreview上，需要循环区间播放。播放开始位置计算公式：(音乐总时长-20s)*时长比例，播放20s。片段循环播放。
+3. 当切换选中项时打断当前播放的选中项预览音频，播放新的音频。
+4. 凡是音频时长小于20s、比例不合规（大于1.1的）则默认从头开始循环播放20s片段
+
+添加替换谱面功能：
+1. 当谱面类型为steam谱面时，_on_load_pressed被调用时则设置当前谱面为待替换的目标谱面，并写入其path和metadata到configfile的[Work]中（current_steam_level）(可在configfile类中添加相关函数实现)，并创建对话框：            var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
+            dialog.title_text = "提示"
+            dialog.content_text = "已设置"+<名称>+"为待替换的Steam谱面"
+            dialog.hide_cancel = true
+            add_child(dialog)
+2. 当谱面类型为本地谱面时，_on_load_pressed被调用时则：（设a=当前选中本地谱面，b=待替换的目标谱面）
+①将b中所有文件移动到path下origin_level文件夹下
+②拷贝a的path中所有文件到b的path下
+③保存当前a的path和metadata到configfile的[Work]中（current_local_replace_level）
+3. 通过configfile中的信息判断并在MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/BG/MarginContainer/HBoxContainer/VBoxContainer/ChartType的类型文字后追加“【已选中】”“【已替换】”字样。
+4. 已替换的谱面再次触发_on_load_pressed时取消替换并复原文件，已选中的steam谱面在_on_load_pressed时提示：            var dialog = preload("uid://bjwhxckwh2wyu").instantiate()
+            dialog.title_text = "提示"
+            dialog.content_text = "该Steam谱面已进行过替换操作，若继续将[b]复原谱面文件并取消选中[/b]"
+            add_child(dialog)
+根据选择结果取消替换。
+5. 先选中再替换，若替换时未选择目标则提示。
+6.删除谱面时进行检查，存在替换和选中的二次提示是否复原后进行，取消复原则取消删除操作
+7. 已替换的谱面本身应从origin_level下读取原有信息而不是替换后的信息
+
+在 SaveManager 中添加存档读写功能：
+存档文件为.sav 文件，路径读取方法如下：    var save_dir = OS.get_config_dir().split("/").slice(0, -1)
+    save_dir.append("LocalLow/PigeonGames/Rizline/save")
+    save_dir = "/".join(save_dir)
+SaveManager 内已有存档加解密函数，解密后为一个 JSON 数组：
+[{"key":"字符串值","value":"字符串值"},{"key":"字符串值","value":"字符串值"},...]
+提供函数，从 workshop.sav 等文件（workshop,config,record,favourite）中读写自定义键值对（variant 值需进行转字符串 + 转义以进行读写），并将其加解密后保存。
+
+对谱面替换逻辑进行扩展以支持多对替换关系：
+1. 当已经产生1对替换关系时，在程序内选择新的待替换目标创意工坊谱面时，进行提示并产生新的替换关系对。
+2. 在【已替换】【已选中】后进行从1开始的标号以区分多对替换关系
+3. 一个待替换本地谱面只能绑定1个待替换目标创意工坊谱面
+4. 新进行本地谱面替换时检查当前是否有空余的待替换目标创意工坊谱面可用，是则按照标号顺序进行替换，替换完成后提示替换关系。否则提示待替换目标创意工坊谱面不足。
+5. 在删除、configfile读写等地方做适当修改以匹配上面的要求。
+
+添加成绩信息读写功能：（下面设a=待替换的本地谱面，b=待替换的目标谱面）
+1. workshop.sav解密后的示例信息如下：
+{
+  "list": [
+    {
+      "key": "onFavTab",
+      "value": "False"
+    },
+    {
+      "key": "selectedLevelId",
+      "value": "3661176534"
+    },
+    {
+      "key": "record:3660880506",
+      "value": "{\"score\":1000000,\"completeRate\":100.0,\"isFullCombo\":false,\"isClear\":true,\"hit\":19,\"bad\":0,\"miss\":0,\"maxHit\":19,\"maxScore\":1000000}"
+    },
+    {
+      "key": "record:3661176534",
+      "value": "{\"score\":1007200,\"completeRate\":120.00000762939453,\"isFullCombo\":true,\"isClear\":true,\"hit\":199,\"bad\":0,\"miss\":0,\"maxHit\":199,\"maxScore\":1007500}"
+    }
+  ]
+}
+其中：record:3660880506后面的10位数字为steam workshop工件id，即创意工坊谱面id。对应的value为转义后的json。SaveManager已提供相关函数进行读写。
+2. 当替换时，从sav存档中读取b当前的成绩并保存。在取消替换时，根据替换关系，找到a在存档中对应的b的id，保存a的成绩并从保存的信息中恢复原有b的成绩
+3. 读取成绩：需要将成绩json信息对应的项显示到对应的控件中(设x=存档相关信息值)：
+①score：MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer2/HBoxContainer/Control/MarginContainer/Score/Current.text=x
+②completeRate：MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/Control/MarginContainer/HBoxContainer/Acc/Big.text=x的整数部分；MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/Control/MarginContainer/HBoxContainer/Acc/Small.text="."+x的前4位小数部分+"%"
+③isFullCombo（下称fc）、isClear（下称cl）：MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/BG/MarginContainer/HBoxContainer/HBoxContainer/Status.modulate、相关scrollitem选中项的MarginContainer2/HBoxContainer/Status.modulate（可在scroll_item.gd中编写相关辅助函数进行设置）。fc和cl均为true时modulate为Color(1.0, 0.831, 0.043)，fc为false，cl为true时为Color(0.38, 0.847, 1.0)，否则为默认的Color(0.6, 0.6, 0.6)。
+④hit:MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/Control/MarginContainer/HBoxContainer/MarginContainer/VBoxContainer/Hit/Current.text=x
+⑤bad:MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/VBoxContainer/Bad.text=x
+⑥miss:MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/VBoxContainer2/Miss.text=x
+⑦maxHit:MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer/HBoxContainer/Control/MarginContainer/HBoxContainer/MarginContainer/VBoxContainer/Hit/All.text="/"+x
+⑧maxScore:MarginContainer/UIContainer/LeftPannel/MarginContainer/BG/MarginContainer4/VBoxContainer/MarginContainer2/HBoxContainer/Control/MarginContainer/Score/All.text="/"+x
+3. 保存位置：同时：在workshop中新建一个key为“rizline-sideloader”的键值对+configfile中创建相关字段用于保存/读取相关信息：①2中的成绩信息②替换关系及其metadata（参照之前的实现，只不过现在多保存一份到sav存档文件中）。**当sav文件信息和本地的存在冲突时，使用对话框由用户进行选择，并将2个文件中的信息同步。**
+4. 对_get_achievement_rate的占位实现进行补全和调整，以提供正确的“completeRate”信息给排序相关函数。
+注意：不要创造不存在的引擎函数，不要过度复杂化。
