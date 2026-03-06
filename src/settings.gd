@@ -90,7 +90,8 @@ func _on_open_rizline_pressed() -> void:
 func _on_open_rizline_editor_pressed() -> void:
     var steam_root_path = config.get_general("steam_root_path")
     if steam_root_path:
-        var rizline_path = DirAccess.open(steam_root_path)
+        var lib_path = VDFParser.get_app_install_path(steam_root_path, "2272590")
+        var rizline_path = DirAccess.open(lib_path)
         if rizline_path:
             rizline_path.change_dir("./steamapps/common/Rizline/Editor")
             OS.shell_open(rizline_path.get_current_dir().path_join("Rizline Editor.exe"))
@@ -111,7 +112,8 @@ func _on_open_rizline_editor_pressed() -> void:
 func _on_open_rizline_editor_manual_pressed() -> void:
     var steam_root_path = config.get_general("steam_root_path")
     if steam_root_path:
-        var rizline_path = DirAccess.open(steam_root_path)
+        var lib_path = VDFParser.get_app_install_path(steam_root_path, "2272590")
+        var rizline_path = DirAccess.open(lib_path)
         if rizline_path:
             rizline_path.change_dir("./steamapps/common/Rizline/Editor")
             OS.shell_open(rizline_path.get_current_dir().path_join("Rizline Editor Manual.exe"))

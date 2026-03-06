@@ -110,9 +110,9 @@ jobs:
       - name: Prepare Files
         run: |
           mkdir -p release_assets
-          cp artifacts/windows/*.exe "release_assets/${{ env.EXPORT_NAME }}_Windows.exe"
-          # cp artifacts/linux/*.x86_64 "release_assets/${{ env.EXPORT_NAME }}_Linux.x86_64"
-          # cp artifacts/mac/*.zip "release_assets/${{ env.EXPORT_NAME }}_macOS.zip"
+          cp artifacts/windows/*.exe "release_assets/${{ env.EXPORT_NAME }}_Windows_ci.exe"
+          # cp artifacts/linux/*.x86_64 "release_assets/${{ env.EXPORT_NAME }}_Linux_ci.x86_64"
+          # cp artifacts/mac/*.zip "release_assets/${{ env.EXPORT_NAME }}_macOS_ci.zip"
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
